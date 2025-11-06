@@ -114,3 +114,4 @@ async def chat1(
     - Pass 'model' parameter: "ollama" or "gemma3:12b" to use Ollama, or omit/None/empty for Gemini default
     """
     return await handle_chat1_request(select, message, file, gemini_api_key, model, operation)
+
