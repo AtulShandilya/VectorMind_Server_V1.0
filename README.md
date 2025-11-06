@@ -87,18 +87,32 @@ ollama serve
 
 ## Running the Application
 
+<<<<<<< HEAD
+=======
+#Important #
+please add a folder ./me and add a profile.pdf or remove the section /chat and keep only /chat1 in server.py
+
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
 ### Development Mode
 
 ```bash
 source venv/bin/activate
+<<<<<<< HEAD
 uvicorn chatServer:app --host 0.0.0.0 --port 8000 --reload
+=======
+uvicorn Server:app --host 0.0.0.0 --port 8000 --reload
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
 ```
 
 ### Production Mode (using PM2)
 
 ```bash
 source venv/bin/activate
+<<<<<<< HEAD
 pm2 start "uvicorn chatServer:app --host 0.0.0.0 --port 8000" --name fastapi-app
+=======
+pm2 start "uvicorn Server:app --host 0.0.0.0 --port 8000" --name fastapi-app
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
 ```
 
 Or use the provided `server.sh` script:
@@ -330,7 +344,11 @@ npm install -g pm2
 
 # Start application
 source venv/bin/activate
+<<<<<<< HEAD
 pm2 start "uvicorn chatServer:app --host 0.0.0.0 --port 8000" --name fastapi-app
+=======
+pm2 start "uvicorn Server:app --host 0.0.0.0 --port 8000" --name fastapi-app
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
 
 # Save PM2 configuration
 pm2 save
@@ -356,7 +374,11 @@ pm2 restart fastapi-app
 
 ```
 LLM_3.0/
+<<<<<<< HEAD
 ├── chatServer.py          # Main FastAPI application
+=======
+├── Server.py              # Main FastAPI application
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
 ├── chat1_handler.py       # Handler for /chat1 endpoint operations
 ├── requirements.txt       # Python dependencies
 ├── server.sh              # PM2 startup script
@@ -419,4 +441,7 @@ For servers with limited RAM (2GB), the following optimizations are implemented:
 - Ollama for local LLM support
 - Sentence Transformers for embeddings
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 784733be6fd32e5bc1ba76f729a190b6d231e23e
