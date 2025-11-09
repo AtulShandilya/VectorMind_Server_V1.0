@@ -283,6 +283,9 @@ class VectorStore:
                             })
                 
                 logger.info(f"FAISS search returned {len(results)} results")
+                if results:
+                    logger.info(f"FAISS result IDs (in order): {[r.get('id', 'unknown') for r in results]}")
+                    logger.info(f"FAISS result distances: {[r.get('distance', 0.0) for r in results]}")
             except Exception as e:
                 logger.warning(f"FAISS search failed, falling back to ChromaDB: {e}")
         
@@ -306,6 +309,9 @@ class VectorStore:
                         })
                 
                 logger.info(f"ChromaDB search returned {len(results)} results")
+                if results:
+                    logger.info(f"ChromaDB result IDs (in order): {[r.get('id', 'unknown') for r in results]}")
+                    logger.info(f"ChromaDB result distances: {[r.get('distance', 0.0) for r in results]}")
             except Exception as e:
                 logger.error(f"ChromaDB search failed: {e}")
                 raise

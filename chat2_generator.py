@@ -126,37 +126,67 @@ Please provide a clear and accurate answer based on the context provided above."
             Dictionary with answer and source information
         """
         if not retrieved_docs:
+            logger.warning("No retrieved documents provided for answer generation")
             return {
                 "answer": "I couldn't find any relevant information in the stored documents to answer your question.",
                 "sources": []
             }
         
+        # Log retrieved documents info
+        logger.info(f"=== DOCUMENT FORMATTING TRACE ===")
+        logger.info(f"Total retrieved documents: {len(retrieved_docs)}")
+        logger.info(f"Query: {query[:100]}...")
+        
         # Format context from retrieved documents
         context_parts = []
         for i, doc in enumerate(retrieved_docs, 1):
+            doc_id = doc.get("id", "unknown")
             metadata = doc.get("metadata", {})
             similarity = doc.get("similarity", 0.0)
+            relevance_score = doc.get("relevance_score", 0.0)
+            distance = doc.get("distance", 0.0)
             text = doc.get("document", "")
+            text_preview = text[:100] + "..." if len(text) > 100 else text
+            
+            # Log each document being formatted
+            logger.info(f"  [Rank {i}] Document ID: {doc_id}")
+            logger.info(f"    - Similarity: {similarity:.4f}")
+            logger.info(f"    - Relevance Score: {relevance_score:.4f}")
+            logger.info(f"    - Distance: {distance:.4f}")
+            logger.info(f"    - Text Preview: {text_preview}")
+            logger.info(f"    - Metadata: {metadata}")
+            
             metadata_str = ", ".join([f"{k}: {v}" for k, v in metadata.items() if k not in ["chunk_index", "start_char", "end_char"]])
             context_parts.append(
                 f"[Document {i} (relevance: {similarity:.3f})]\n"
                 f"Metadata: {metadata_str}\n"
                 f"Content: {text}"
             )
+        
         context = "\n\n---\n\n".join(context_parts)
+        
+        # Log context summary
+        logger.info(f"=== CONTEXT SUMMARY ===")
+        logger.info(f"Total context length: {len(context)} characters")
+        logger.info(f"Number of document parts: {len(context_parts)}")
+        logger.info(f"Context preview (first 500 chars): {context[:500]}...")
+        logger.info(f"=== END DOCUMENT FORMATTING TRACE ===")
         
         # Generate answer
         answer = self.generate_answer(query, context, temperature)
         
-        # Prepare sources
+        # Prepare sources - include all chunks that were sent to LLM
         sources = []
         for i, doc in enumerate(retrieved_docs, 1):
             sources.append({
+                "rank": i,
                 "source_index": i,
                 "id": doc.get("id"),
+                "document": doc.get("document", ""),  # Full document text that was sent to LLM
                 "metadata": doc.get("metadata", {}),
                 "relevance_score": doc.get("relevance_score", 0.0),
-                "similarity": doc.get("similarity", 0.0)
+                "similarity": doc.get("similarity", 0.0),
+                "distance": doc.get("distance", 0.0)
             })
         
         return {

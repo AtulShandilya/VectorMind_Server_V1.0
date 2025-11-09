@@ -185,14 +185,42 @@ async def process_query_request(
         retriever = DocumentRetriever(embedder, vector_store)
         generator = AnswerGenerator(model_preference, gemini_api_key)
         
-        # Retrieve relevant documents
-        logger.info("Step 1: Document retrieval")
-        retrieved_docs = retriever.retrieve(
+        # Retrieve relevant documents - get more candidates to filter by threshold
+        # We'll retrieve more than needed, then filter by threshold and take top ones
+        retrieval_candidates = max(TOP_K_RESULTS * 2, 10)  # Get more candidates for threshold filtering
+        logger.info("=== QUERY PROCESSING START ===")
+        logger.info(f"Step 1: Document retrieval (getting {retrieval_candidates} candidates for threshold filtering)")
+        
+        all_retrieved_docs = retriever.retrieve(
             query=message,
-            top_k=TOP_K_RESULTS
+            top_k=retrieval_candidates,
+            similarity_threshold=0.0  # Get all candidates first, filter by threshold later
         )
         
+        # Filter by relevance_score threshold and sort by highest relevance_score
+        from chat2_config import SIMILARITY_THRESHOLD
+        RELEVANCE_THRESHOLD = SIMILARITY_THRESHOLD  # Use same threshold for relevance_score
+        
+        logger.info(f"Retrieved {len(all_retrieved_docs)} candidates, filtering by relevance_score >= {RELEVANCE_THRESHOLD}")
+        
+        # Filter chunks that cross the threshold
+        threshold_crossing_docs = [
+            doc for doc in all_retrieved_docs 
+            if doc.get("relevance_score", 0.0) >= RELEVANCE_THRESHOLD
+        ]
+        
+        # Sort by relevance_score (highest first) and take top TOP_K_RESULTS
+        threshold_crossing_docs.sort(key=lambda x: x.get("relevance_score", 0.0), reverse=True)
+        retrieved_docs = threshold_crossing_docs[:TOP_K_RESULTS]
+        
+        logger.info(f"After threshold filtering: {len(threshold_crossing_docs)} chunks crossed threshold")
+        logger.info(f"Selected top {len(retrieved_docs)} chunks with highest relevance_score")
+        if retrieved_docs:
+            logger.info(f"Document IDs retrieved: {[doc.get('id', 'unknown') for doc in retrieved_docs]}")
+            logger.info(f"Relevance scores: {[doc.get('relevance_score', 0.0) for doc in retrieved_docs]}")
+        
         if not retrieved_docs:
+            logger.warning("No documents retrieved for query")
             return JSONResponse({
                 "status": "no_results",
                 "message": "No relevant context found in the database",
@@ -201,11 +229,15 @@ async def process_query_request(
             })
         
         # Generate answer with sources
-        logger.info("Step 2: Answer generation")
+        logger.info(f"Step 2: Answer generation (using {len(retrieved_docs)} documents)")
         result = generator.generate_answer_with_sources(
             query=message,
             retrieved_docs=retrieved_docs
         )
+        
+        logger.info(f"=== QUERY PROCESSING COMPLETE ===")
+        logger.info(f"Answer generated: {len(result.get('answer', ''))} characters")
+        logger.info(f"Sources returned: {len(result.get('sources', []))}")
         
         return JSONResponse({
             "status": "success",

@@ -90,7 +90,17 @@ class DocumentRetriever:
             # Sort by relevance (highest first)
             filtered_results.sort(key=lambda x: x.get("relevance_score", 0.0), reverse=True)
             
-            logger.info(f"Retrieved {len(filtered_results)} relevant documents (threshold={similarity_threshold})")
+            # Log retrieval details
+            logger.info(f"=== RETRIEVAL TRACE ===")
+            logger.info(f"Query: {query[:100]}...")
+            logger.info(f"Total results from vector store: {len(results)}")
+            logger.info(f"Filtered results (threshold={similarity_threshold}): {len(filtered_results)}")
+            for idx, result in enumerate(filtered_results, 1):
+                logger.info(f"  [Rank {idx}] ID: {result.get('id', 'unknown')}, "
+                          f"Similarity: {result.get('similarity', 0.0):.4f}, "
+                          f"Distance: {result.get('distance', 0.0):.4f}")
+            logger.info(f"=== END RETRIEVAL TRACE ===")
+            
             return filtered_results
             
         except Exception as e:
