@@ -152,7 +152,7 @@ async def chat2(
     - select="data": Get, delete, or similarity search chunks from vector database
       - operation="get": Get all chunks or specific chunk
       - operation="delete": Delete all chunks or specific chunk
-      - operation="similarity": Find top 20 most similar chunks to query message
+      - operation="similarity": Find top 20 most similar chunks to query messages
     """
     from chat2_handler import handle_chat2_request
     return await handle_chat2_request(select, message, file, gemini_api_key, model, operation)
