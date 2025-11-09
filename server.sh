@@ -1,5 +1,5 @@
 #pm2 start gunicorn --name "fastapi-app" -- main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-source venv/bin/activate
+#source venv/bin/activate
 # Increase request size limits
 # Note: For very large files (>100MB), use nginx as reverse proxy with client_max_body_size
 # See nginx_config_example.conf for nginx configuration
