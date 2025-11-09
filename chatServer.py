@@ -115,3 +115,32 @@ async def chat1(
     """
     return await handle_chat1_request(select, message, file, gemini_api_key, model, operation)
 
+
+###########################################################################################
+# CHAT2 - Industry-Standard Modular RAG Pipeline                                          #
+###########################################################################################
+@app.post("/chat2")
+async def chat2(
+    select: str = Form(...), 
+    message: str = Form(...), 
+    file: UploadFile = File(None), 
+    model: str = Form(None),
+    operation: str = Form(None)
+):
+    """
+    Endpoint for modular RAG pipeline operations.
+    
+    Parameters:
+    - select: "input", "query", or "data" - determines the operation type
+    - message: The actual content/text/chunk_id
+    - file: Optional PDF file (for input operation)
+    - model: Optional model selection ("ollama", "gemma3:12b", or None for Gemini default)
+    - operation: Optional operation for data select ("get" or "delete")
+    
+    Operations:
+    - select="input": Process PDF/text through ingestion -> embedding -> vector store pipeline
+    - select="query": Retrieve relevant context and generate answer via LLM
+    - select="data": Get or delete chunks from vector database
+    """
+    from chat2_handler import handle_chat2_request
+    return await handle_chat2_request(select, message, file, gemini_api_key, model, operation)
