@@ -17,6 +17,8 @@ CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_db")
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "chat1_collection")
 CHUNK_CHAR_SIZE = 2000
 CHUNK_OVERLAP_SIZE = 300
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "100"))  # Maximum file size in MB
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024  # Convert to bytes
 
 # Model configuration
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
@@ -250,13 +252,22 @@ async def process_input_request(
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
         
         file_bytes = await file.read()
+        
+        # Validate file size
+        if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+            max_size_mb = MAX_FILE_SIZE_BYTES / (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"File size ({len(file_bytes) / (1024 * 1024):.2f} MB) exceeds maximum allowed size ({max_size_mb} MB)"
+            )
+        
         file_name = file.filename
         has_file = True
         
         # Extract text from PDF to send to LLM
         # (OpenAI-compatible endpoint doesn't support direct file uploads)
         extracted_text = extract_text_from_pdf_bytes(file_bytes)
-        logger.info(f"Extracted text from PDF for LLM processing: {file_name} ({len(extracted_text)} characters)")
+        logger.info(f"Extracted text from PDF for LLM processing: {file_name} ({len(extracted_text)} characters, {len(file_bytes) / (1024 * 1024):.2f} MB)")
         
         # If text is also provided, it will be included in the prompt
         if input_text:

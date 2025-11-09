@@ -19,6 +19,7 @@ EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 
 # ---------- Retrieval Configuration ----------
 TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "5"))
+SIMILARITY_TOP_K = int(os.getenv("SIMILARITY_TOP_K", "20"))  # Top K for similarity search
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.0"))
 
 # ---------- LLM Configuration ----------
@@ -35,6 +36,10 @@ FAISS_INDEX_TYPE = os.getenv("FAISS_INDEX_TYPE", "L2")  # L2 or COSINE
 # ---------- Text Processing Configuration ----------
 MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", "50000"))  # Limit for LLM processing
 MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "100"))  # Minimum chunk size
+
+# ---------- File Upload Configuration ----------
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "100"))  # Maximum file size in MB
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024  # Convert to bytes
 
 # ---------- Logging Configuration ----------
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

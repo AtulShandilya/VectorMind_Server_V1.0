@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import os
@@ -10,6 +10,15 @@ from chat1_handler import handle_chat1_request
 env_file = ".env.production" if os.path.exists(".env.production") else ".env"
 load_dotenv(env_file, override=True)
 
+# Get max file size from environment (default 100MB)
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "100"))
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+# Configure FastAPI
+# Note: For large file uploads, the request body size limit is controlled by:
+# 1. Uvicorn server configuration (see server.sh)
+# 2. Reverse proxy (nginx) if used (see nginx_config_example.conf)
+# 3. Client-side limits
 app = FastAPI()
 
 # Allow CORS (so Next.js can talk to FastAPI)
@@ -140,7 +149,10 @@ async def chat2(
     Operations:
     - select="input": Process PDF/text through ingestion -> embedding -> vector store pipeline
     - select="query": Retrieve relevant context and generate answer via LLM
-    - select="data": Get or delete chunks from vector database
+    - select="data": Get, delete, or similarity search chunks from vector database
+      - operation="get": Get all chunks or specific chunk
+      - operation="delete": Delete all chunks or specific chunk
+      - operation="similarity": Find top 20 most similar chunks to query message
     """
     from chat2_handler import handle_chat2_request
     return await handle_chat2_request(select, message, file, gemini_api_key, model, operation)

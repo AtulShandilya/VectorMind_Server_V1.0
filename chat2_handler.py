@@ -11,7 +11,7 @@ Parameters:
   - message: str (required) - Content/text/chunk_id based on operation
   - file: UploadFile (optional) - PDF file (for select="input")
   - model: str (optional) - Model selection: "ollama", "gemma3:12b", or None (Gemini default)
-  - operation: str (optional) - For select="data": "get" or "delete"
+  - operation: str (optional) - For select="data": "get", "delete", or "similarity"
 
 Operations:
 -----------
@@ -33,12 +33,13 @@ Operations:
    Response: Answer with source citations
 
 3. select="data":
-   Operations: Same as chat1
+   Operations:
    - operation="get" + message="all": Get all chunks
    - operation="get" + message="chunk_id": Get specific chunk
    - operation="delete" + message="all": Delete all chunks
    - operation="delete" + message="chunk_id": Delete specific chunk
-   Response: Chunk data or deletion confirmation
+   - operation="similarity" + message="query text": Find top 20 most similar chunks to query
+   Response: Chunk data, deletion confirmation, or similarity search results
 """
 import logging
 from typing import Optional
@@ -50,7 +51,7 @@ from chat2_embedder import DocumentEmbedder
 from chat2_vectorstore import VectorStore
 from chat2_retriever import DocumentRetriever
 from chat2_generator import AnswerGenerator
-from chat2_config import TOP_K_RESULTS, LOG_LEVEL
+from chat2_config import TOP_K_RESULTS, LOG_LEVEL, MAX_FILE_SIZE_BYTES, SIMILARITY_TOP_K
 
 # Initialize logging
 logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper(), logging.INFO))
@@ -106,9 +107,21 @@ async def process_input_request(
         if file:
             if not file.filename.lower().endswith('.pdf'):
                 raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            
+            # Check file size before reading
+            # Note: We need to read the file to check size, but we'll validate after
             pdf_bytes = await file.read()
+            
+            # Validate file size
+            if len(pdf_bytes) > MAX_FILE_SIZE_BYTES:
+                max_size_mb = MAX_FILE_SIZE_BYTES / (1024 * 1024)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File size ({len(pdf_bytes) / (1024 * 1024):.2f} MB) exceeds maximum allowed size ({max_size_mb} MB)"
+                )
+            
             filename = file.filename
-            logger.info(f"Processing PDF file: {filename} ({len(pdf_bytes)} bytes)")
+            logger.info(f"Processing PDF file: {filename} ({len(pdf_bytes) / (1024 * 1024):.2f} MB)")
         
         # Ingest document (read, clean, chunk)
         logger.info("Step 1: Document ingestion (read, clean, chunk)")
@@ -210,14 +223,18 @@ async def process_query_request(
 
 async def process_data_request(message: str, operation: Optional[str] = None) -> JSONResponse:
     """
-    Process data request: get or delete chunks from ChromaDB.
-    Same functionality as chat1.
+    Process data request: get, delete, or similarity search chunks from ChromaDB.
+    
+    Operations:
+    - "get": Get all chunks or specific chunk by ID
+    - "delete": Delete all chunks or specific chunk by ID
+    - "similarity": Find top 20 most similar chunks to the query message
     """
     if not operation:
-        raise HTTPException(status_code=400, detail="'operation' parameter is required for data select (should be 'get' or 'delete')")
+        raise HTTPException(status_code=400, detail="'operation' parameter is required for data select (should be 'get', 'delete', or 'similarity')")
     
     if not message:
-        raise HTTPException(status_code=400, detail="'message' parameter is required (should be 'all' or a chunk ID)")
+        raise HTTPException(status_code=400, detail="'message' parameter is required")
     
     try:
         vector_store = get_vector_store()
@@ -274,10 +291,59 @@ async def process_data_request(message: str, operation: Optional[str] = None) ->
                     "message": f"Deleted chunk '{text_value}'",
                     "deleted_chunk_id": text_value
                 })
+        
+        elif operation == "similarity":
+            # Similarity search: find top 20 most similar chunks
+            if not text_value:
+                raise HTTPException(status_code=400, detail="'message' parameter is required for similarity operation (should contain the query text)")
+            
+            # Initialize retriever for similarity search
+            embedder = get_embedder()
+            retriever = DocumentRetriever(embedder, vector_store)
+            
+            # Retrieve top 20 similar chunks
+            logger.info(f"Performing similarity search for query: {text_value[:100]}...")
+            retrieved_docs = retriever.retrieve(
+                query=text_value,
+                top_k=SIMILARITY_TOP_K,
+                similarity_threshold=0.0  # No threshold for similarity search, get top 20
+            )
+            
+            if not retrieved_docs:
+                return JSONResponse({
+                    "status": "no_results",
+                    "operation": "similarity",
+                    "message": "No chunks found in the database",
+                    "query": text_value,
+                    "results": []
+                })
+            
+            # Format results with similarity scores
+            results = []
+            for i, doc in enumerate(retrieved_docs, 1):
+                results.append({
+                    "rank": i,
+                    "id": doc.get("id"),
+                    "document": doc.get("document", ""),
+                    "metadata": doc.get("metadata", {}),
+                    "similarity_score": doc.get("similarity", 0.0),
+                    "relevance_score": doc.get("relevance_score", 0.0),
+                    "distance": doc.get("distance", 0.0)
+                })
+            
+            logger.info(f"Similarity search returned {len(results)} results")
+            return JSONResponse({
+                "status": "success",
+                "operation": "similarity",
+                "query": text_value,
+                "total_results": len(results),
+                "results": results
+            })
+        
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid operation '{operation}'. Supported operations: 'get', 'delete'"
+                detail=f"Invalid operation '{operation}'. Supported operations: 'get', 'delete', 'similarity'"
             )
     except HTTPException:
         raise
